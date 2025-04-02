@@ -3,20 +3,21 @@
 #include "button_manager.h"
 #include "mq7_manager.h"
 #include "mq4_manager.h"
-#include "gps_manager.h"
 #include "DHT11.h"
+#include "mqtt_manager.h"
 #include <nvs_flash.h>
+#include "voltage_sensor.h"
 
-// Instancia de HardwareSerial para el GPS (usando UART2)
-HardwareSerial gpsSerial(2);
-
-// Instancias de las demás clases (ajusta según tu configuración)
+// Instancias de las demás clases
 WifiManager wifiManager;
 ButtonManager button(4);
 DHT11 dht(27);
 MQ7Manager mq7;
 MQ4Manager mq4;
-GPSManager gpsManager(gpsSerial, 3, 1);
+VoltageSensor voltageSensor;
+
+// Variables para control de tiempo
+unsigned long lastPublishTime = 0;
 
 void initNVS() {
     // Inicializar NVS
@@ -37,7 +38,6 @@ void setup() {
     initNVS();
     delay(500);
 
-
     Serial.println("Iniciando DHT...");
     dht.begin();
     delay(100);
@@ -46,51 +46,48 @@ void setup() {
     button.begin();
     delay(100);
 
+    Serial.println("Iniciando Sensor de Voltaje...");
+    voltageSensor.begin();
+    delay(100);
+
+
     Serial.println("Iniciando MQ7...");
     mq7.begin();
     delay(100);
 
     Serial.println("Iniciando MQ4...");
     mq4.begin();
-    delay(100);
+    delay(100);;
 
-   // Serial.println("Iniciando GPS...");//gpsManager.begin();
-    delay(100);
-
-    // WiFi Manager al final para dar prioridad a los demás componentes
+    // WiFi Manager para conectividad
     Serial.println("Iniciando WiFi Manager...");
     wifiManager.begin();
     delay(500);
 
+
     Serial.println("Setup completado!");
 }
+
+
 void loop() {
     wifiManager.loop();
     button.update();
     mq7.update();
     mq4.update();
+    voltageSensor.update();
+
 
     // Leer el sensor DHT11
-    delay(1000);
     if (dht.read()) {
         Serial.print("Humedad: ");
         Serial.print(dht.getHumidity());
         Serial.print(" % | Temperatura: ");
         Serial.print(dht.getTemperature());
         Serial.println(" °C");
-    } else {
-        Serial.println("Error al leer el sensor DHT11");
     }
-
-    gpsManager.update();
-
-    if (gpsManager.locationUpdated()) {
-        Serial.print("Latitud: ");
-        Serial.println(gpsManager.getLatitude());
-        Serial.print("Longitud: ");
-        Serial.println(gpsManager.getLongitude());
+    else {
+        Serial.print("");
     }
-
 
     delay(1000); // Intervalo de actualización
 }

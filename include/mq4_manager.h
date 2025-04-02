@@ -10,7 +10,12 @@ public:
     MQ4Manager();
     void begin();
     void update();
-    float calculatePPM(int rawValue); // Declaración de la función
+    float calculatePPM(int rawValue); // Función para calcular PPM
+
+    // Getters para acceder a los valores actuales
+    int getRawValue() const { return rawValue; }
+    float getVoltage() const { return voltage; }
+    float getPPM() const { return ppmCH4; }
 
 private:
     int rawValue;

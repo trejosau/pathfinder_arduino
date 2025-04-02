@@ -1,6 +1,6 @@
 #include "DHT11.h"
 
-#define DHT11_MIN_SAMPLING_PERIOD 2000 // Tiempo mínimo entre lecturas (2 segundos)
+#define DHT11_MIN_SAMPLING_PERIOD 1500
 
 DHT11::DHT11(uint8_t pin) {
   this->pin = pin;
@@ -46,6 +46,7 @@ bool DHT11::read() {
     // Actualizar valores si la lectura es exitosa
     humidity = data[0] + data[1] * 0.1;
     temperature = data[2] + data[3] * 0.1;
+
     return true;
   }
   return false;
