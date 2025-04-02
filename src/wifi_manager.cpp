@@ -2,16 +2,13 @@
 #include <Preferences.h>
 #include <WiFi.h>
 
-// Instancia para guardar las credenciales en memoria no volátil
-Preferences preferences;
 
 WifiManager::WifiManager() : apMode(false), lastCheck(0) {
   // Constructor
 }
 
 void WifiManager::begin() {
-  // Inicializar preferences
-  preferences.begin("wifi-config", false);
+  preferences.begin("wifi-manager", false);
 
   // Configurar el WiFi en modo STA (station)
   WiFi.mode(WIFI_STA);

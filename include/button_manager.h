@@ -18,7 +18,7 @@ private:
     bool currentState;
     unsigned long pressStartTime;
     bool messageShown;
-    Preferences preferences; // Instancia para manejar la memoria flash
+    Preferences preferences;
 };
 
 #endif

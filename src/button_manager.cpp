@@ -5,32 +5,31 @@ ButtonManager::ButtonManager(uint8_t pin) : pin(pin), lastState(HIGH), currentSt
 
 void ButtonManager::begin() {
     pinMode(pin, INPUT_PULLUP);
-    preferences.clear();
+    preferences.begin("button-config", false);
 }
 
 void ButtonManager::update() {
     currentState = digitalRead(pin);
-    if (isPressed() && (millis() - pressStartTime >= 3000) && !messageShown) {
+
+    // Verificar pulsación del botón
+    if (lastState == HIGH && currentState == LOW) {
+        pressStartTime = millis();
+        messageShown = false;
+    }
+
+    // Detección de pulsación larga
+    if (currentState == LOW && (millis() - pressStartTime >= 3000) && !messageShown) {
         Serial.println("Suelta el botón");
 
-        // Borrar de la memoria flash las credenciales SSID y password
-        preferences.remove("SSID");
+        // Borrar credenciales WiFi
+        preferences.begin("wifi-config", false);
+        preferences.remove("ssid");
         preferences.remove("password");
+        preferences.end();
 
         Serial.println("Credenciales borradas de la memoria flash");
-
         messageShown = true;
     }
-}
 
-bool ButtonManager::isPressed() {
-    return currentState == LOW;
-}
-
-
-unsigned long ButtonManager::getPressDuration() {
-    if (isPressed()) {
-        return millis() - pressStartTime;
-    }
-    return 0;
+    lastState = currentState;
 }

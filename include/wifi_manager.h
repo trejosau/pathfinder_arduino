@@ -12,6 +12,7 @@ public:
     void tryConnect(const String &ssid, const String &password);
 private:
     void checkAndSetupAP();
+    Preferences preferences;
     bool apMode;
     unsigned long lastCheck;
     WebServerManager webServer;
