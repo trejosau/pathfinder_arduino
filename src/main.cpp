@@ -5,6 +5,7 @@
 #include "mq4_manager.h"
 #include "gps_manager.h"
 #include "dht_manager.h"
+#include <nvs_flash.h>
 
 // Instancia de HardwareSerial para el GPS (usando UART2)
 HardwareSerial gpsSerial(2);
@@ -17,16 +18,50 @@ MQ7Manager mq7;
 MQ4Manager mq4;
 GPSManager gpsManager(gpsSerial, 3, 1);
 
+void initNVS() {
+    // Inicializar NVS
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ret = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(ret);
+    Serial.println("NVS inicializado correctamente");
+}
+
 void setup() {
     Serial.begin(115200);
-    Serial.println("Iniciando...");
+    delay(1000); // Dar tiempo al puerto serie para inicializarse
+    Serial.println("\n\n--- Iniciando aplicación ---");
 
+    initNVS();
+    delay(500);
+
+    Serial.println("Iniciando DHT...");
     dhtManager.begin();
-    wifiManager.begin();
+    delay(100);
+
+    Serial.println("Iniciando Button Manager...");
     button.begin();
+    delay(100);
+
+    Serial.println("Iniciando MQ7...");
     mq7.begin();
+    delay(100);
+
+    Serial.println("Iniciando MQ4...");
     mq4.begin();
-    gpsManager.begin();
+    delay(100);
+
+   // Serial.println("Iniciando GPS...");//gpsManager.begin();
+    delay(100);
+
+    // WiFi Manager al final para dar prioridad a los demás componentes
+    Serial.println("Iniciando WiFi Manager...");
+    wifiManager.begin();
+    delay(500);
+
+    Serial.println("Setup completado!");
 }
 
 void loop() {

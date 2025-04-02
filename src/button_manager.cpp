@@ -23,8 +23,8 @@ void ButtonManager::update() {
 
         // Borrar credenciales WiFi
         preferences.begin("wifi-config", false);
-        preferences.remove("ssid");
-        preferences.remove("password");
+        preferences.remove("SSIDWIFI");
+        preferences.remove("PASSWORDWIFI");
         preferences.end();
 
         Serial.println("Credenciales borradas de la memoria flash");

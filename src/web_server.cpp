@@ -1,31 +1,47 @@
 #include "web_server.h"
 
 WebServerManager::WebServerManager() : server(8090), credentialsReceived(false) {
-    // Constructor
     Serial.println("WebServerManager: Constructor inicializado");
 
-    // Inicializar biblioteca de preferencias usando el miembro de la clase
-    preferences.begin("wificonfig", false); // "wificonfig" es el namespace (identificador) para nuestras preferencias
+
 }
 
 void WebServerManager::begin() {
+    // Inicializar las preferencias aquí en lugar de en el constructor
+    if (!preferences.begin("wificonfig", false)) {
+        Serial.println("ERROR: No se pudo inicializar preferences en WebServerManager");
+    } else {
+        Serial.println("Preferences iniciado correctamente en WebServerManager");
+    }
+
+    Serial.println("Configurando rutas API...");
+
     // Configurar rutas API
     server.on("/api/status", HTTP_GET, [this]() {
         Serial.println("Endpoint /api/status accedido");
         this->handleGetStatus();
     });
+
+    Serial.println("Ruta /api/status configurada");
+
     server.on("/api/wifi", HTTP_POST, [this]() {
         Serial.println("Endpoint /api/wifi accedido");
         this->handleSetCredentials();
     });
+
+    Serial.println("Ruta /api/wifi configurada");
+
     server.onNotFound([this]() {
         Serial.println("Endpoint no encontrado accedido");
         this->handleNotFound();
     });
 
+    Serial.println("Ruta 404 configurada");
+
     // Iniciar servidor
+    Serial.println("Iniciando servidor...");
     server.begin();
-    Serial.println("Servidor API iniciado en el puerto 80");
+    Serial.println("Servidor API iniciado en el puerto 8090");
 }
 
 void WebServerManager::handleClient() {
@@ -60,7 +76,7 @@ void WebServerManager::handleGetStatus() {
     enableCORS();
 
     // Crear JSON con el estado
-    DynamicJsonDocument doc(256);
+    DynamicJsonDocument doc(512);
 
     if (WiFi.status() == WL_CONNECTED) {
         doc["connected"] = true;
@@ -117,7 +133,7 @@ void WebServerManager::handleSetCredentials() {
 
         if (hasJsonContentType || hasJsonBody) {
             // Analizar JSON
-            DynamicJsonDocument doc(256);
+            DynamicJsonDocument doc(512);
             DeserializationError error = deserializeJson(doc, body);
 
             if (!error) {
