@@ -4,7 +4,7 @@
 #include "mq7_manager.h"
 #include "mq4_manager.h"
 #include "gps_manager.h"
-#include "dht_manager.h"
+#include "DHT11.h"
 #include <nvs_flash.h>
 
 // Instancia de HardwareSerial para el GPS (usando UART2)
@@ -13,7 +13,7 @@ HardwareSerial gpsSerial(2);
 // Instancias de las demás clases (ajusta según tu configuración)
 WifiManager wifiManager;
 ButtonManager button(4);
-DHTManager dhtManager(13);
+DHT11 dht(27);
 MQ7Manager mq7;
 MQ4Manager mq4;
 GPSManager gpsManager(gpsSerial, 3, 1);
@@ -38,7 +38,7 @@ void setup() {
     delay(500);
 
     Serial.println("Iniciando DHT...");
-    dhtManager.begin();
+    dht.begin();
     delay(100);
 
     Serial.println("Iniciando Button Manager...");
@@ -63,13 +63,24 @@ void setup() {
 
     Serial.println("Setup completado!");
 }
-
 void loop() {
     wifiManager.loop();
     button.update();
     mq7.update();
     mq4.update();
-    dhtManager.update();
+
+    // Leer el sensor DHT11
+    delay(1000);
+    if (dht.read()) {
+        Serial.print("Humedad: ");
+        Serial.print(dht.getHumidity());
+        Serial.print(" % | Temperatura: ");
+        Serial.print(dht.getTemperature());
+        Serial.println(" °C");
+    } else {
+        Serial.println("Error al leer el sensor DHT11");
+    }
+
     gpsManager.update();
 
     if (gpsManager.locationUpdated()) {

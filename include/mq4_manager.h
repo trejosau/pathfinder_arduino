@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 
-#define MQ4_PIN 35  // Pin donde está conectado el MQ-4
+#define MQ4_PIN 32  // Pin donde está conectado el MQ-4
 
 class MQ4Manager {
 public:
