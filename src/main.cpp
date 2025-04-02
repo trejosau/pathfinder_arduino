@@ -22,8 +22,8 @@ void setup() {
     Serial.println("Iniciando...");
 
     dhtManager.begin();
-   // wifiManager.begin();
-   // button.begin();
+    wifiManager.begin();
+    button.begin();
     mq7.begin();
     mq4.begin();
     gpsManager.begin();
