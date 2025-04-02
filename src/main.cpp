@@ -37,6 +37,7 @@ void setup() {
     initNVS();
     delay(500);
 
+
     Serial.println("Iniciando DHT...");
     dht.begin();
     delay(100);
@@ -89,6 +90,7 @@ void loop() {
         Serial.print("Longitud: ");
         Serial.println(gpsManager.getLongitude());
     }
+
 
     delay(1000); // Intervalo de actualización
 }
