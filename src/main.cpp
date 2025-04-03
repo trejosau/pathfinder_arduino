@@ -44,7 +44,7 @@ MotorController motors; // Instancia del controlador de motores
 #define PWM_CHANNEL_B 1
 
 unsigned long lastPublishTime = 0;
-const long publishInterval = 5000; // Publish every 5 seconds
+const long publishInterval = 7000; // Publish every 5 seconds
 
 // Callback para controlar los motores mediante MQTT utilizando JSON
 void mqtt_callback(char* topic, byte* payload, unsigned int length) {
@@ -52,74 +52,60 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
     StaticJsonDocument<200> doc;
     DeserializationError error = deserializeJson(doc, payload, length);
 
-    if (error) {
+    String commandStr = "";
+
+    if (!error) {
+        // Extraemos el valor asociado a la clave "command"
+        if (doc.containsKey("command")) {
+            commandStr = doc["command"].as<String>();
+        } else {
+            Serial.println("JSON recibido pero no contiene la clave \"command\"");
+            return;
+        }
+    } else {
         Serial.print("Error al parsear JSON: ");
         Serial.println(error.c_str());
         return;
     }
 
     String topicStr = String(topic);
+    Serial.print("MQTT mensaje recibido [");
+    Serial.print(topicStr);
+    Serial.print("]: ");
+    Serial.println(commandStr);
 
     // Procesar comandos para control de motores
     if (topicStr == topicBase + "/motor/control") {
-        // Extraemos el comando
-        if (!doc.containsKey("command")) {
-            Serial.println("JSON recibido pero no contiene la clave \"command\"");
-            return;
-        }
-
-        String command = doc["command"].as<String>();
-
-        // Extraemos la velocidad (si existe)
-        uint8_t speed = 200; // Velocidad por defecto
-        if (doc.containsKey("speed")) {
-            speed = doc["speed"].as<int>();
-            if (speed < 0 || speed > 255) {
-                speed = 200; // Si está fuera de rango, usar valor por defecto
-            }
-        }
-
-        Serial.print("Comando: ");
-        Serial.print(command);
-        Serial.print(", Velocidad: ");
-        Serial.println(speed);
-
-        // Ejecutar comando
-        if (command == "forward") {
-            motors.moveForward(speed);
+        if (commandStr == "forward") {
+            motors.moveForward(200); // Velocidad media
             Serial.println("Motores: Avanzando");
         }
-        else if (command == "backward") {
-            motors.moveBackward(speed);
+        else if (commandStr == "backward") {
+            motors.moveBackward(200);
             Serial.println("Motores: Retrocediendo");
         }
-        else if (command == "left") {
-            motors.turnLeft(speed);
+        else if (commandStr == "left") {
+            motors.turnLeft(180);
             Serial.println("Motores: Girando izquierda");
         }
-        else if (command == "right") {
-            motors.turnRight(speed);
+        else if (commandStr == "right") {
+            motors.turnRight(180);
             Serial.println("Motores: Girando derecha");
         }
-        else if (command == "stop") {
+        else if (commandStr == "stop") {
             motors.stop();
             Serial.println("Motores: Detenidos");
         }
     }
     // También se puede añadir un tópico para control de velocidad (se espera un número en formato string dentro de "command")
     else if (topicStr == topicBase + "/motor/speed") {
-        int speed = 0;
-        if (doc.containsKey("speed")) {
-            speed = doc["speed"].as<int>();
-            if (speed >= 0 && speed <= 255) {
-                motors.setSpeed(speed);
-                Serial.print("Velocidad de motores ajustada a: ");
-                Serial.println(speed);
-            } else {
-                Serial.println("Valor de velocidad fuera de rango (0-255)");
-            }
+        int speed = commandStr.toInt();
+        if (speed >= 0 && speed <= 255) {
+            motors.setSpeed(speed);
+            Serial.print("Velocidad de motores ajustada a: ");
+            Serial.println(speed);
         } else {
-            Serial.println("JSON recibido pero no contiene la clave \"speed\"");
+            Serial.println("Valor de velocidad fuera de rango (0-255)");
         }
     }
 }
@@ -300,27 +286,12 @@ void loop() {
     }
     mqtt.loop();
 
-    // Update sensor values
-    button.update();
-    mq7.update();
-    mq4.update();
-    voltageSensor.update();
 
-    // Read DHT11 sensor
-    if (dht.read()) {
-        Serial.print("Humidity: ");
-        Serial.print(dht.getHumidity());
-        Serial.print(" % | Temperature: ");
-        Serial.print(dht.getTemperature());
-        Serial.println(" °C");
-    }
 
     // Read incline sensor
     if (inclineSensor.isInclined()) {
         digitalWrite(13, LOW);
-        Serial.println("Incline sensor: ACTIVATED");
     } else {
-        Serial.println("Incline sensor: inactive");
         digitalWrite(13, HIGH);
     }
 
