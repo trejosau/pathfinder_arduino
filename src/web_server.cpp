@@ -5,8 +5,32 @@ WebServerManager::WebServerManager() : server(8090), credentialsReceived(false) 
 }
 
 String WebServerManager::getDeviceId() {
-   String deviceId = preferences.getString("deviceId");
+    // Verificar si las preferencias ya están iniciadas
+    if (!preferences.begin("wificonfig", false)) {
+        Serial.println("ERROR: No se pudo inicializar preferences en getDeviceId");
+        return "";
+    }
+
+    // Obtener deviceId existente o crear uno nuevo
+    String deviceId = preferences.getString("deviceId");
+
+
+
+    preferences.end();
     return deviceId;
+}
+
+void WebServerManager::setDeviceID(const String &deviceID) {
+    if (!preferences.begin("wificonfig", false)) {
+        Serial.println("ERROR: No se pudo inicializar preferences en setDeviceID");
+        return;
+    }
+
+    preferences.putString("deviceId", deviceID);
+    this->deviceID = deviceID;
+    preferences.end();
+
+    Serial.println("deviceId configurado a: " + deviceID);
 }
 
 void WebServerManager::begin() {
