@@ -17,6 +17,7 @@ MQ4Manager mq4;
 VoltageSensor voltageSensor;
 InclineSensor inclineSensor(15);
 
+
 unsigned long lastPublishTime = 0;
 
 void initNVS() {
@@ -32,7 +33,7 @@ void initNVS() {
 
 void setup() {
     Serial.begin(115200);
-
+    pinMode(13, OUTPUT);
 
     initNVS();
     delay(500);
@@ -95,9 +96,12 @@ void loop() {
 
     // Leer el sensor de inclinación
     if (inclineSensor.isInclined()) {
+        digitalWrite(13, LOW);
         Serial.println("Sensor de inclinación: ACTIVADO");
     } else {
         Serial.println("Sensor de inclinación: inactivo");
+        tokyoDrift.play();
+
     }
 
     delay(1000);

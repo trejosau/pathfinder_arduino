@@ -115,14 +115,6 @@ void WebServerManager::handleSetCredentials() {
     }
     Serial.println("-------------------------");
 
-    // Verificar Content-Type
-    if (server.hasHeader("Content-Type")) {
-        Serial.print("Content-Type encontrado: ");
-        Serial.println(server.header("Content-Type"));
-    } else {
-        Serial.println("No se encontró encabezado Content-Type");
-    }
-
     // Verificar si hay datos en el cuerpo
     if (server.hasArg("plain")) {
         String body = server.arg("plain");
@@ -146,41 +138,84 @@ void WebServerManager::handleSetCredentials() {
                     String ssid = doc["ssid"].as<String>();
                     String password = doc["password"].as<String>();
 
-                    // Guardar las credenciales en la memoria flash
-                    preferences.putString("SSIDWIFI", ssid);
-                    preferences.putString("PASSWORDWIFI", password);
+                    // Intentar conectarse al WiFi para validar las credenciales
+                    Serial.println("Intentando conectar al WiFi con SSID: " + ssid);
 
-                    credentialsReceived = true;
+                    // Guardar modo AP actual
+                    IPAddress apIP = WiFi.softAPIP();
+                    String apSSID = WiFi.softAPSSID();
 
-                    Serial.println("Credenciales guardadas en flash: SSID=" + ssid);
+                    // Intentar conexión al WiFi
+                    WiFi.begin(ssid.c_str(), password.c_str());
 
-                    String deviceId = preferences.getString("deviceId");
+                    // Esperar hasta 10 segundos para la conexión
+                    int timeout = 10; // 10 segundos
+                    bool connected = false;
 
-                    // Preparar respuesta de éxito
-                    DynamicJsonDocument response(128);
-                    response["success"] = true;
-                    response["message"] = "Credenciales guardadas correctamente en memoria flash";
-                    response["deviceId"] = deviceId;
+                    while (timeout > 0 && WiFi.status() != WL_CONNECTED) {
+                        delay(1000);
+                        Serial.print(".");
+                        timeout--;
+                    }
 
-                    String jsonResponse;
-                    serializeJson(response, jsonResponse);
+                    if (WiFi.status() == WL_CONNECTED) {
+                        // Conexión exitosa, las credenciales son correctas
+                        Serial.println("\nConexión exitosa al WiFi: " + ssid);
+                        Serial.println("IP asignada: " + WiFi.localIP().toString());
 
-                    Serial.println("Enviando respuesta exitosa: " + jsonResponse);
-                    server.send(200, "application/json", jsonResponse);
+                        // Guardar las credenciales en la memoria flash
+                        preferences.putString("SSIDWIFI", ssid);
+                        preferences.putString("PASSWORDWIFI", password);
+                        credentialsReceived = true;
+
+                        String deviceId = preferences.getString("deviceId");
+
+                        // Preparar respuesta de éxito
+                        DynamicJsonDocument response(256);
+                        response["success"] = true;
+                        response["message"] = "Credenciales verificadas y guardadas correctamente";
+                        response["deviceId"] = deviceId;
+                        response["ip"] = WiFi.localIP().toString();
+
+                        String jsonResponse;
+                        serializeJson(response, jsonResponse);
+
+                        Serial.println("Enviando respuesta exitosa: " + jsonResponse);
+                        server.send(200, "application/json", jsonResponse);
+
+                        // No regresamos al modo AP inmediatamente para mantener la conexión
+                    } else {
+                        // Las credenciales son incorrectas
+                        Serial.println("\nError: No se pudo conectar al WiFi. Credenciales incorrectas o red no disponible.");
+
+                        // Volver al modo AP
+                        WiFi.disconnect();
+                        delay(500);
+                        WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
+                        WiFi.softAP(apSSID.c_str());
+
+                        // Respuesta de error
+                        DynamicJsonDocument response(256);
+                        response["success"] = false;
+                        response["message"] = "No se pudo conectar al WiFi. Credenciales incorrectas o red no disponible.";
+
+                        String jsonResponse;
+                        serializeJson(response, jsonResponse);
+
+                        Serial.println("Enviando respuesta de error: " + jsonResponse);
+                        server.send(400, "application/json", jsonResponse);
+                    }
                 } else {
                     Serial.println("Error: Faltan campos requeridos en el JSON");
-                    // Faltan campos requeridos
                     server.send(400, "application/json", "{\"success\":false,\"message\":\"Faltan campos requeridos (ssid y/o password)\"}");
                 }
             } else {
                 Serial.print("Error al parsear JSON: ");
                 Serial.println(error.c_str());
-                // Error al parsear JSON
                 server.send(400, "application/json", "{\"success\":false,\"message\":\"Error al procesar JSON\"}");
             }
         } else {
             Serial.println("Error: Content-Type incorrecto o cuerpo no reconocido como JSON");
-            // No es una petición JSON
             server.send(400, "application/json", "{\"success\":false,\"message\":\"Se requiere Content-Type: application/json o cuerpo JSON válido\"}");
         }
     } else {
