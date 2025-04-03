@@ -52,60 +52,58 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
     StaticJsonDocument<200> doc;
     DeserializationError error = deserializeJson(doc, payload, length);
 
-    String commandStr = "";
-
-    if (!error) {
-        // Extraemos el valor asociado a la clave "command"
-        if (doc.containsKey("command")) {
-            commandStr = doc["command"].as<String>();
-        } else {
-            Serial.println("JSON recibido pero no contiene la clave \"command\"");
-            return;
-        }
-    } else {
+    if (error) {
         Serial.print("Error al parsear JSON: ");
         Serial.println(error.c_str());
         return;
     }
 
     String topicStr = String(topic);
-    Serial.print("MQTT mensaje recibido [");
-    Serial.print(topicStr);
-    Serial.print("]: ");
-    Serial.println(commandStr);
 
     // Procesar comandos para control de motores
     if (topicStr == topicBase + "/motor/control") {
-        if (commandStr == "forward") {
-            motors.moveForward(200); // Velocidad media
+        // Extraemos el comando
+        if (!doc.containsKey("command")) {
+            Serial.println("JSON recibido pero no contiene la clave \"command\"");
+            return;
+        }
+
+        String command = doc["command"].as<String>();
+
+        // Extraemos la velocidad (si existe)
+        uint8_t speed = 200; // Velocidad por defecto
+        if (doc.containsKey("speed")) {
+            speed = doc["speed"].as<int>();
+            if (speed < 0 || speed > 255) {
+                speed = 200; // Si está fuera de rango, usar valor por defecto
+            }
+        }
+
+        Serial.print("Comando: ");
+        Serial.print(command);
+        Serial.print(", Velocidad: ");
+        Serial.println(speed);
+
+        // Ejecutar comando
+        if (command == "forward") {
+            motors.moveForward(speed);
             Serial.println("Motores: Avanzando");
         }
-        else if (commandStr == "backward") {
-            motors.moveBackward(200);
+        else if (command == "backward") {
+            motors.moveBackward(speed);
             Serial.println("Motores: Retrocediendo");
         }
-        else if (commandStr == "left") {
-            motors.turnLeft(180);
+        else if (command == "left") {
+            motors.turnLeft(speed);
             Serial.println("Motores: Girando izquierda");
         }
-        else if (commandStr == "right") {
-            motors.turnRight(180);
+        else if (command == "right") {
+            motors.turnRight(speed);
             Serial.println("Motores: Girando derecha");
         }
-        else if (commandStr == "stop") {
+        else if (command == "stop") {
             motors.stop();
             Serial.println("Motores: Detenidos");
-        }
-    }
-    // También se puede añadir un tópico para control de velocidad (se espera un número en formato string dentro de "command")
-    else if (topicStr == topicBase + "/motor/speed") {
-        int speed = commandStr.toInt();
-        if (speed >= 0 && speed <= 255) {
-            motors.setSpeed(speed);
-            Serial.print("Velocidad de motores ajustada a: ");
-            Serial.println(speed);
-        } else {
-            Serial.println("Valor de velocidad fuera de rango (0-255)");
         }
     }
 }
