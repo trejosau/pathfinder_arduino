@@ -1,5 +1,4 @@
 #include <Arduino.h>
-#include "wifi_manager.h"
 #include "button_manager.h"
 #include "mq7_manager.h"
 #include "mq4_manager.h"
@@ -7,15 +6,23 @@
 #include <nvs_flash.h>
 #include "voltage_sensor.h"
 #include "incline_sensor.h"
+#include <Preferences.h>
+#include "wifi_manager.h"
 
-// Instancias de las demás clases
-WifiManager wifiManager;
+
+const char* ssid = "pathfinder_wifi";
+const char* password = "12345677";
+
+
 ButtonManager button(4);
 DHT11 dht(27);
 MQ7Manager mq7;
 MQ4Manager mq4;
 VoltageSensor voltageSensor;
 InclineSensor inclineSensor(15);
+Preferences preferences;
+WiFiManager wifiManager(ssid, password, 20000, 5000);
+
 
 
 unsigned long lastPublishTime = 0;
@@ -31,8 +38,13 @@ void initNVS() {
     Serial.println("NVS inicializado correctamente");
 }
 
+
+
+
+
 void setup() {
     Serial.begin(115200);
+
     pinMode(13, OUTPUT);
 
     initNVS();
@@ -58,14 +70,15 @@ void setup() {
     mq4.begin();
     delay(100);
 
+    preferences.begin("pathfinder", false);
+    preferences.putString("deviceId", "db2596e8-fe29-409e-8039-4c22e9a47407");
+    String deviceId = preferences.getString("deviceId", "");
+    Serial.println("\n\n--- Iniciando pathfinder ---");
+    Serial.println("Device ID: " + deviceId);
+
     Serial.println("Iniciando WiFi Manager...");
     wifiManager.begin();
     delay(500);
-
-    delay(1000);
-    const String deviceId = wifiManager.getDeviceId();
-    Serial.println("\n\n--- Iniciando pathfinder ---");
-    Serial.println("Device ID: " + deviceId);
 
     Serial.println("Iniciando Sensor de Inclinación...");
     inclineSensor.begin();
@@ -79,11 +92,11 @@ void setup() {
 }
 
 void loop() {
-    wifiManager.loop();
     button.update();
     mq7.update();
     mq4.update();
     voltageSensor.update();
+    wifiManager.update();
 
     // Leer el sensor DHT11
     if (dht.read()) {
@@ -94,14 +107,12 @@ void loop() {
         Serial.println(" °C");
     }
 
-    // Leer el sensor de inclinación
     if (inclineSensor.isInclined()) {
         digitalWrite(13, LOW);
         Serial.println("Sensor de inclinación: ACTIVADO");
     } else {
         Serial.println("Sensor de inclinación: inactivo");
-        tokyoDrift.play();
-
+        digitalWrite(13, HIGH);
     }
 
     delay(1000);

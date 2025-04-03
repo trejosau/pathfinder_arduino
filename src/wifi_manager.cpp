@@ -1,161 +1,113 @@
 #include "wifi_manager.h"
-#include <Preferences.h>
-#include <WiFi.h>
 
-
-WifiManager::WifiManager() : apMode(false), lastCheck(0) {
-  // Constructor
+WiFiManager::WiFiManager(const char* ssid, const char* password,
+                         unsigned long connectionTimeout, unsigned long reconnectInterval) {
+    _ssid = ssid;
+    _password = password;
+    _connectionTimeout = connectionTimeout;
+    _reconnectInterval = reconnectInterval;
+    _lastReconnectAttempt = 0;
+    _isConnected = false;
 }
 
-String WifiManager::getDeviceId() {
-    return webServer.getDeviceId();
-}
+void WiFiManager::begin() {
+    Serial.println("Iniciando conexión WiFi...");
 
-void WifiManager::begin() {
-  preferences.begin("wifi-manager", false);
+    // Set WiFi mode
+    WiFi.mode(WIFI_STA);
 
-  // Configurar el WiFi en modo STA (station)
-  WiFi.mode(WIFI_STA);
+    // Start connection attempt
+    WiFi.begin(_ssid, _password);
 
+    // Wait for connection with timeout
+    unsigned long startAttemptTime = millis();
 
-
-  // Intentar conectarse con credenciales guardadas (si existen)
-  String savedSSID = preferences.getString("ssid", "");
-  String savedPassword = preferences.getString("password", "");
-
-  if (savedSSID != "") {
-    Serial.println("Intentando conectar con credenciales guardadas...");
-    Serial.print("SSID: ");
-    Serial.println(savedSSID);
-
-    WiFi.begin(savedSSID.c_str(), savedPassword.c_str());
-
-    unsigned long startTime = millis();
-    while (WiFi.status() != WL_CONNECTED && millis() - startTime < 10000) {
-      delay(500);
-      Serial.print(".");
+    while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < _connectionTimeout) {
+        Serial.print(".");
+        delay(500);
     }
-    Serial.println();
-  }
 
-  // Si no está conectado, configurar el AP y registrar eventos
-  checkAndSetupAP();
-
-  // Inicializar el servidor API
-  webServer.begin();
-}
-
-bool WifiManager::isConnected() {
-  return (WiFi.status() == WL_CONNECTED);
-}
-
-void WifiManager::checkAndSetupAP() {
-  if (!isConnected()) {
-    // No está conectado: configurar el modo AP
-    const char* apSSID = "ESP32_Config";      // Nombre del AP
-    const char* apPassword = "12345678";        // Contraseña (mínimo 8 caracteres)
-    Serial.println("No está conectado a WiFi. Creando punto de acceso...");
-
-    // Cambiar a modo AP
-    WiFi.mode(WIFI_AP);
-    WiFi.softAP(apSSID, apPassword);
-
-    // Mostrar IP del AP
-    IPAddress apIP = WiFi.softAPIP();
-    Serial.print("AP creado con SSID: ");
-    Serial.println(apSSID);
-    Serial.print("Dirección IP del AP: ");
-    Serial.println(apIP);
-
-    apMode = true;
-
-    // Registrar eventos para depurar conexiones de clientes
-    // Registrar eventos para depurar conexiones de clientes
-    WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
-      if (event == ARDUINO_EVENT_WIFI_AP_STACONNECTED) {
-        Serial.print("Cliente conectado, MAC: ");
-        char mac[18];
-        sprintf(mac, "%02X:%02X:%02X:%02X:%02X:%02X",
-                info.wifi_ap_staconnected.mac[0],
-                info.wifi_ap_staconnected.mac[1],
-                info.wifi_ap_staconnected.mac[2],
-                info.wifi_ap_staconnected.mac[3],
-                info.wifi_ap_staconnected.mac[4],
-                info.wifi_ap_staconnected.mac[5]);
-        Serial.println(mac);
-      } else if (event == ARDUINO_EVENT_WIFI_AP_STADISCONNECTED) {
-        Serial.print("Cliente desconectado, MAC: ");
-        char mac[18];
-        sprintf(mac, "%02X:%02X:%02X:%02X:%02X:%02X",
-                info.wifi_ap_stadisconnected.mac[0],
-                info.wifi_ap_stadisconnected.mac[1],
-                info.wifi_ap_stadisconnected.mac[2],
-                info.wifi_ap_stadisconnected.mac[3],
-                info.wifi_ap_stadisconnected.mac[4],
-                info.wifi_ap_stadisconnected.mac[5]);
-        Serial.println(mac);
-      }
-    });
-
-  } else {
-    Serial.println("Conectado a WiFi");
-    Serial.print("Dirección IP: ");
-    Serial.println(WiFi.localIP());
-    apMode = false;
-  }
-}
-
-void WifiManager::tryConnect(const String &ssid, const String &password) {
-  // Guardar las nuevas credenciales en NVS
-  preferences.putString("ssid", ssid);
-  preferences.putString("password", password);
-
-
-  Serial.println("Intentando conectar con nuevas credenciales...");
-  Serial.print("SSID: ");
-  Serial.println(ssid);
-
-  // Cambiar a modo estación e intentar la conexión
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid.c_str(), password.c_str());
-
-  unsigned long startTime = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - startTime < 10000) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println();
-
-  if (isConnected()) {
-    Serial.println("Conectado exitosamente a la nueva red WiFi");
-    Serial.print("Dirección IP: ");
-    Serial.println(WiFi.localIP());
-    apMode = false;
-  } else {
-    Serial.println("Falló la conexión con las nuevas credenciales");
-    // Si falla, se vuelve a configurar el AP
-    checkAndSetupAP();
-  }
-}
-
-void WifiManager::loop() {
-  // Manejar las peticiones del servidor API
-  webServer.handleClient();
-
-  // Verificar si hay nuevas credenciales recibidas desde el endpoint /api/wifi
-  String newSSID, newPassword;
-  if (webServer.getNewCredentials(newSSID, newPassword)) {
-    tryConnect(newSSID, newPassword);
-    webServer.clearNewCredentials();
-  }
-
-  // Chequeo periódico de la conexión (cada 30 segundos)
-  unsigned long currentTime = millis();
-  if (currentTime - lastCheck > 30000) {
-    lastCheck = currentTime;
-    if (!isConnected() && !apMode) {
-      Serial.println("Se perdió la conexión WiFi");
-      checkAndSetupAP();
+    if (WiFi.status() == WL_CONNECTED) {
+        _isConnected = true;
+        Serial.println();
+        Serial.println("WiFi conectado exitosamente!");
+        Serial.print("Dirección IP: ");
+        Serial.println(WiFi.localIP());
+        Serial.print("Intensidad de señal (RSSI): ");
+        Serial.print(WiFi.RSSI());
+        Serial.println(" dBm");
+    } else {
+        _isConnected = false;
+        Serial.println();
+        Serial.println("Fallo en la conexión WiFi. Intentando de nuevo más tarde...");
+        // Disconnect to clean up but don't stop trying
+        WiFi.disconnect();
     }
-  }
+
+    _lastReconnectAttempt = millis();
+}
+
+void WiFiManager::update() {
+    // Check current connection status
+    bool currentlyConnected = (WiFi.status() == WL_CONNECTED);
+
+    // Update state
+    if (_isConnected != currentlyConnected) {
+        _isConnected = currentlyConnected;
+
+        if (_isConnected) {
+            Serial.println("WiFi reconectado exitosamente!");
+            Serial.print("Dirección IP: ");
+            Serial.println(WiFi.localIP());
+            Serial.print("Intensidad de señal: ");
+            Serial.print(WiFi.RSSI());
+            Serial.println(" dBm");
+        } else {
+            Serial.println("Conexión WiFi perdida. Intentando reconexión automáticamente...");
+        }
+    }
+
+    // Attempt reconnection if disconnected and enough time has passed
+    if (!_isConnected && millis() - _lastReconnectAttempt > _reconnectInterval) {
+        Serial.print("Intentando reconexión WiFi a '");
+        Serial.print(_ssid);
+        Serial.println("'...");
+
+        // Sometimes it helps to disconnect explicitly before reconnecting
+        WiFi.disconnect();
+        delay(100);
+
+        // Begin connection
+        WiFi.begin(_ssid, _password);
+        _lastReconnectAttempt = millis();
+    }
+}
+
+bool WiFiManager::isConnected() {
+    return _isConnected;
+}
+
+void WiFiManager::setCredentials(const char* ssid, const char* password) {
+    _ssid = ssid;
+    _password = password;
+}
+
+String WiFiManager::getLocalIP() {
+    if (_isConnected) {
+        return WiFi.localIP().toString();
+    } else {
+        return "No conectado";
+    }
+}
+
+int WiFiManager::getSignalStrength() {
+    if (_isConnected) {
+        return WiFi.RSSI();
+    } else {
+        return 0;
+    }
+}
+
+void WiFiManager::setReconnectInterval(unsigned long interval) {
+    _reconnectInterval = interval;
 }

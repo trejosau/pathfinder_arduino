@@ -1,11 +1,9 @@
 #ifndef INCLINE_SENSOR_H
 #define INCLINE_SENSOR_H
-
 #include <Arduino.h>
-
 class InclineSensor {
 private:
-    uint8_t pin;  // Pin donde se conecta DO
+    uint8_t pin;
 public:
     InclineSensor(uint8_t pin);
     void begin();

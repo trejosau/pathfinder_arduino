@@ -31,11 +31,11 @@ void ButtonManager::update() {
         preferences.begin("wificonfig", false);
 
         // Borrar específicamente las credenciales WiFi
-        preferences.remove("SSIDWIFI");
-        preferences.remove("PASSWORDWIFI");
+        preferences.remove("ssid");
+        preferences.remove("password");
 
-        if (preferences.getString("SSIDWIFI", "").length() == 0 &&
-            preferences.getString("PASSWORDWIFI", "").length() == 0) {
+        if (preferences.getString("ssid", "").length() == 0 &&
+            preferences.getString("password", "").length() == 0) {
             Serial.println("Credenciales WiFi borradas correctamente");
             delay(2000);
         } else {
