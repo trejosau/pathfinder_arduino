@@ -100,7 +100,7 @@ void loop() {
         Serial.println("Sensor de inclinación: ACTIVADO");
     } else {
         Serial.println("Sensor de inclinación: inactivo");
-        tokyoDrift.play();
+        digitalWrite(13, HIGH);
 
     }
 
