@@ -8,6 +8,8 @@
 #include <nvs_flash.h>
 #include "voltage_sensor.h"
 #include "incline_sensor.h"
+#include "motor_controller.h" // Incluimos el nuevo controlador de motores
+#include <ArduinoJson.h>      // Para procesar JSON
 
 // Fixed WiFi credentials
 const char* WIFI_SSID = "PATHFINDERWIFI";
@@ -33,9 +35,80 @@ MQ7Manager mq7;
 MQ4Manager mq4;
 VoltageSensor voltageSensor;
 InclineSensor inclineSensor(15);
+MotorController motors; // Instancia del controlador de motores
+
+// PWM properties
+#define PWM_FREQUENCY 5000
+#define PWM_RESOLUTION 8
+#define PWM_CHANNEL_A 0
+#define PWM_CHANNEL_B 1
 
 unsigned long lastPublishTime = 0;
 const long publishInterval = 5000; // Publish every 5 seconds
+
+// Callback para controlar los motores mediante MQTT utilizando JSON
+void mqtt_callback(char* topic, byte* payload, unsigned int length) {
+    // Creamos un documento JSON estático con un tamaño adecuado
+    StaticJsonDocument<200> doc;
+    DeserializationError error = deserializeJson(doc, payload, length);
+
+    String commandStr = "";
+
+    if (!error) {
+        // Extraemos el valor asociado a la clave "command"
+        if (doc.containsKey("command")) {
+            commandStr = doc["command"].as<String>();
+        } else {
+            Serial.println("JSON recibido pero no contiene la clave \"command\"");
+            return;
+        }
+    } else {
+        Serial.print("Error al parsear JSON: ");
+        Serial.println(error.c_str());
+        return;
+    }
+
+    String topicStr = String(topic);
+    Serial.print("MQTT mensaje recibido [");
+    Serial.print(topicStr);
+    Serial.print("]: ");
+    Serial.println(commandStr);
+
+    // Procesar comandos para control de motores
+    if (topicStr == topicBase + "/motor/control") {
+        if (commandStr == "forward") {
+            motors.moveForward(200); // Velocidad media
+            Serial.println("Motores: Avanzando");
+        }
+        else if (commandStr == "backward") {
+            motors.moveBackward(200);
+            Serial.println("Motores: Retrocediendo");
+        }
+        else if (commandStr == "left") {
+            motors.turnLeft(180);
+            Serial.println("Motores: Girando izquierda");
+        }
+        else if (commandStr == "right") {
+            motors.turnRight(180);
+            Serial.println("Motores: Girando derecha");
+        }
+        else if (commandStr == "stop") {
+            motors.stop();
+            Serial.println("Motores: Detenidos");
+        }
+    }
+    // También se puede añadir un tópico para control de velocidad (se espera un número en formato string dentro de "command")
+    else if (topicStr == topicBase + "/motor/speed") {
+        int speed = commandStr.toInt();
+        if (speed >= 0 && speed <= 255) {
+            motors.setSpeed(speed);
+            Serial.print("Velocidad de motores ajustada a: ");
+            Serial.println(speed);
+        } else {
+            Serial.println("Valor de velocidad fuera de rango (0-255)");
+        }
+    }
+}
 
 void initNVS() {
     // Initialize NVS
@@ -75,6 +148,9 @@ void reconnectMQTT() {
         // Attempt to connect
         if (mqtt.connect(MQTT_CLIENT_ID)) {
             Serial.println("connected");
+            // Suscribirse a los topics de control de motores
+            mqtt.subscribe((topicBase + "/motor/control").c_str());
+            mqtt.subscribe((topicBase + "/motor/speed").c_str());
         } else {
             Serial.print("failed, rc=");
             Serial.print(mqtt.state());
@@ -149,6 +225,14 @@ void setup() {
     initNVS();
     delay(500);
 
+    // Configurar canales PWM para los motores
+    ledcSetup(PWM_CHANNEL_A, PWM_FREQUENCY, PWM_RESOLUTION);
+    ledcSetup(PWM_CHANNEL_B, PWM_FREQUENCY, PWM_RESOLUTION);
+
+    // Asignar los pines a los canales PWM
+    ledcAttachPin(MOTOR_ENA, PWM_CHANNEL_A);
+    ledcAttachPin(MOTOR_ENB, PWM_CHANNEL_B);
+
     Serial.println("Initializing DHT...");
     dht.begin();
     delay(100);
@@ -173,11 +257,16 @@ void setup() {
     inclineSensor.begin();
     delay(100);
 
+    Serial.println("Initializing Motor Controller...");
+    motors.begin();
+    delay(100);
+
     // Setup WiFi connection with static credentials
     setupWifi();
 
     // Setup MQTT connection
     mqtt.setServer(MQTT_SERVER, MQTT_PORT);
+    mqtt.setCallback(mqtt_callback); // Configurar callback para mensajes entrantes
 
     Serial.println("\n\n--- Starting Pathfinder ---");
     Serial.println("Device ID: " + String(DEVICE_ID));
