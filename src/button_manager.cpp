@@ -5,7 +5,7 @@ ButtonManager::ButtonManager(uint8_t pin) : pin(pin), lastState(HIGH), currentSt
 
 void ButtonManager::begin() {
     pinMode(pin, INPUT_PULLUP);
-    preferences.begin("button-config", false);
+    // No necesitamos iniciar preferences aquí, solo cuando las usemos
 }
 
 void ButtonManager::update() {
@@ -19,16 +19,33 @@ void ButtonManager::update() {
 
     // Detección de pulsación larga
     if (currentState == LOW && (millis() - pressStartTime >= 3000) && !messageShown) {
-        Serial.println("Suelta el botón");
+        Serial.println("Botón presionado por 3 segundos. Suelta el botón para borrar las credenciales WiFi...");
+        messageShown = true;
+    }
 
-        // Borrar credenciales WiFi
-        preferences.begin("wifi-config", false);
-        preferences.remove("SSIDWIFI");
-        preferences.remove("PASSWORDWIFI");
+    // Cuando se suelta el botón después de una pulsación larga
+    if (lastState == LOW && currentState == HIGH && messageShown) {
+        Serial.println("Borrando credenciales WiFi...");
+
+        // Iniciar preferences con el mismo namespace usado para guardar las credenciales
+        preferences.begin("wificonfig", false);
+
+        // Borrar específicamente las credenciales WiFi
+        preferences.remove("ssid");
+        preferences.remove("password");
+
+        if (preferences.getString("ssid", "").length() == 0 &&
+            preferences.getString("password", "").length() == 0) {
+            Serial.println("Credenciales WiFi borradas correctamente");
+            delay(2000);
+        } else {
+            Serial.println("Error al borrar credenciales WiFi");
+        }
+
         preferences.end();
 
-        Serial.println("Credenciales borradas de la memoria flash");
-        messageShown = true;
+
+        Serial.println("Dispositivo listo para recibir nuevas credenciales");
     }
 
     lastState = currentState;

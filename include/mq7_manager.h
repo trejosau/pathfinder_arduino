@@ -11,6 +11,11 @@ public:
     void begin();
     void update();
 
+    // Getters para acceder a los valores actuales
+    int getRawValue() const { return rawValue; }
+    float getVoltage() const { return voltage; }
+    float getPPM() const { return ppmCO; }
+
 private:
     int rawValue;
     float voltage;
