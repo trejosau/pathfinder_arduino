@@ -2,7 +2,6 @@
 
 
 
-
 InclineSensor::InclineSensor(uint8_t pin) {
     this->pin = pin;
 }
