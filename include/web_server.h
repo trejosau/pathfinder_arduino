@@ -13,6 +13,7 @@ public:
     void handleClient();
     bool getNewCredentials(String &ssid, String &password);
     void clearNewCredentials();
+    String getDeviceId();
     void setDeviceID(const String &deviceID);
 
 private:

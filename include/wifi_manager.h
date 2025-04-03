@@ -10,6 +10,7 @@ public:
     void loop();
     bool isConnected();
     void tryConnect(const String &ssid, const String &password);
+    String getDeviceId();
 private:
     void checkAndSetupAP();
     Preferences preferences;

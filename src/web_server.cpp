@@ -2,8 +2,11 @@
 
 WebServerManager::WebServerManager() : server(8090), credentialsReceived(false) {
     Serial.println("WebServerManager: Constructor inicializado");
+}
 
-
+String WebServerManager::getDeviceId() {
+   String deviceId = preferences.getString("deviceId");
+    return deviceId;
 }
 
 void WebServerManager::begin() {
@@ -151,10 +154,13 @@ void WebServerManager::handleSetCredentials() {
 
                     Serial.println("Credenciales guardadas en flash: SSID=" + ssid);
 
+                    String deviceId = preferences.getString("deviceId");
+
                     // Preparar respuesta de éxito
                     DynamicJsonDocument response(128);
                     response["success"] = true;
                     response["message"] = "Credenciales guardadas correctamente en memoria flash";
+                    response["deviceId"] = deviceId;
 
                     String jsonResponse;
                     serializeJson(response, jsonResponse);
@@ -195,13 +201,4 @@ void WebServerManager::handleNotFound() {
 
     Serial.println("404 - Endpoint no encontrado");
     server.send(404, "application/json", "{\"success\":false,\"message\":\"Endpoint no encontrado\"}");
-}
-
-void WebServerManager::setDeviceID(const String &deviceID) {
-    this->deviceID = deviceID;
-
-    // Registrar una ruta para que la app pueda obtener el ID
-    server.on("/api/device-id", HTTP_GET, [this]() {
-      server.send(200, "application/json", "{\"deviceID\":\"" + this->deviceID + "\"}");
-    });
 }

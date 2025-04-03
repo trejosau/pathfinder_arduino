@@ -4,9 +4,9 @@
 #include "mq7_manager.h"
 #include "mq4_manager.h"
 #include "DHT11.h"
-#include "mqtt_manager.h"
 #include <nvs_flash.h>
 #include "voltage_sensor.h"
+#include "incline_sensor.h"
 
 // Instancias de las demás clases
 WifiManager wifiManager;
@@ -15,8 +15,8 @@ DHT11 dht(27);
 MQ7Manager mq7;
 MQ4Manager mq4;
 VoltageSensor voltageSensor;
+InclineSensor inclineSensor(15);
 
-// Variables para control de tiempo
 unsigned long lastPublishTime = 0;
 
 void initNVS() {
@@ -32,8 +32,7 @@ void initNVS() {
 
 void setup() {
     Serial.begin(115200);
-    delay(1000); // Dar tiempo al puerto serie para inicializarse
-    Serial.println("\n\n--- Iniciando aplicación ---");
+
 
     initNVS();
     delay(500);
@@ -50,24 +49,33 @@ void setup() {
     voltageSensor.begin();
     delay(100);
 
-
     Serial.println("Iniciando MQ7...");
     mq7.begin();
     delay(100);
 
     Serial.println("Iniciando MQ4...");
     mq4.begin();
-    delay(100);;
+    delay(100);
 
-    // WiFi Manager para conectividad
     Serial.println("Iniciando WiFi Manager...");
     wifiManager.begin();
     delay(500);
 
+    delay(1000);
+    const String deviceId = wifiManager.getDeviceId();
+    Serial.println("\n\n--- Iniciando pathfinder ---");
+    Serial.println("Device ID: " + deviceId);
+
+    Serial.println("Iniciando Sensor de Inclinación...");
+    inclineSensor.begin();
+    delay(100);
+
 
     Serial.println("Setup completado!");
-}
 
+
+
+}
 
 void loop() {
     wifiManager.loop();
@@ -75,7 +83,6 @@ void loop() {
     mq7.update();
     mq4.update();
     voltageSensor.update();
-
 
     // Leer el sensor DHT11
     if (dht.read()) {
@@ -85,9 +92,13 @@ void loop() {
         Serial.print(dht.getTemperature());
         Serial.println(" °C");
     }
-    else {
-        Serial.print("");
+
+    // Leer el sensor de inclinación
+    if (inclineSensor.isInclined()) {
+        Serial.println("Sensor de inclinación: ACTIVADO");
+    } else {
+        Serial.println("Sensor de inclinación: inactivo");
     }
 
-    delay(1000); // Intervalo de actualización
+    delay(1000);
 }

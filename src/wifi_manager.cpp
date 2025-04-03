@@ -7,11 +7,17 @@ WifiManager::WifiManager() : apMode(false), lastCheck(0) {
   // Constructor
 }
 
+String WifiManager::getDeviceId() {
+    return webServer.getDeviceId();
+}
+
 void WifiManager::begin() {
   preferences.begin("wifi-manager", false);
 
   // Configurar el WiFi en modo STA (station)
   WiFi.mode(WIFI_STA);
+
+
 
   // Intentar conectarse con credenciales guardadas (si existen)
   String savedSSID = preferences.getString("ssid", "");
@@ -103,6 +109,7 @@ void WifiManager::tryConnect(const String &ssid, const String &password) {
   // Guardar las nuevas credenciales en NVS
   preferences.putString("ssid", ssid);
   preferences.putString("password", password);
+
 
   Serial.println("Intentando conectar con nuevas credenciales...");
   Serial.print("SSID: ");
