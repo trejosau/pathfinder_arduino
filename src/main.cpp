@@ -106,6 +106,22 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
             Serial.println("Motores: Detenidos");
         }
     }
+    // También se puede añadir un tópico para control de velocidad (se espera un número en formato string dentro de "command")
+    else if (topicStr == topicBase + "/motor/speed") {
+        int speed = 0;
+        if (doc.containsKey("speed")) {
+            speed = doc["speed"].as<int>();
+            if (speed >= 0 && speed <= 255) {
+                motors.setSpeed(speed);
+                Serial.print("Velocidad de motores ajustada a: ");
+                Serial.println(speed);
+            } else {
+                Serial.println("Valor de velocidad fuera de rango (0-255)");
+            }
+        } else {
+            Serial.println("JSON recibido pero no contiene la clave \"speed\"");
+        }
+    }
 }
 
 void initNVS() {
