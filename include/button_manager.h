@@ -2,7 +2,6 @@
 #define BUTTON_MANAGER_H
 
 #include <Arduino.h>
-#include <Preferences.h>
 
 class ButtonManager {
 public:
@@ -18,7 +17,6 @@ private:
     bool currentState;
     unsigned long pressStartTime;
     bool messageShown;
-    Preferences preferences;
 };
 
 #endif

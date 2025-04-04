@@ -1,11 +1,11 @@
 // ButtonManager.cpp
 #include "button_manager.h"
-
+#define BUZZER_PIN 25
 ButtonManager::ButtonManager(uint8_t pin) : pin(pin), lastState(HIGH), currentState(HIGH), pressStartTime(0), messageShown(false) {}
 
 void ButtonManager::begin() {
     pinMode(pin, INPUT_PULLUP);
-    // No necesitamos iniciar preferences aquí, solo cuando las usemos
+
 }
 
 void ButtonManager::update() {
@@ -25,27 +25,7 @@ void ButtonManager::update() {
 
     // Cuando se suelta el botón después de una pulsación larga
     if (lastState == LOW && currentState == HIGH && messageShown) {
-        Serial.println("Borrando credenciales WiFi...");
-
-        // Iniciar preferences con el mismo namespace usado para guardar las credenciales
-        preferences.begin("wificonfig", false);
-
-        // Borrar específicamente las credenciales WiFi
-        preferences.remove("ssid");
-        preferences.remove("password");
-
-        if (preferences.getString("ssid", "").length() == 0 &&
-            preferences.getString("password", "").length() == 0) {
-            Serial.println("Credenciales WiFi borradas correctamente");
-            delay(2000);
-        } else {
-            Serial.println("Error al borrar credenciales WiFi");
-        }
-
-        preferences.end();
-
-
-        Serial.println("Dispositivo listo para recibir nuevas credenciales");
+        digitalWrite(BUZZER_PIN, LOW);
     }
 
     lastState = currentState;
