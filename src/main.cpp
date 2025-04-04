@@ -6,19 +6,15 @@
 #include <nvs_flash.h>
 #include "voltage_sensor.h"
 #include "incline_sensor.h"
-#include "motor_controller.h"
-#include "gps_manager.h"
 
 // ====================
 // DEFINICIONES Y CONSTANTES
 // ====================
 
-// PWM properties para motores
-#define PWM_FREQUENCY 5000
-#define PWM_RESOLUTION 8
-#define PWM_CHANNEL_A 0
-#define PWM_CHANNEL_B 1
-
+// Variables del gps
+#define RXD2 16
+#define TXD2 17
+#define GPS_BAUD 9600
 // Intervalo de impresión para resumen de sensores
 unsigned long lastPrintTime = 0;
 const long printInterval = 7000; // 7 segundos
@@ -31,12 +27,9 @@ DHT11 dht(27);
 MQ7Manager mq7;
 MQ4Manager mq4;
 VoltageSensor voltageSensor;
+HardwareSerial gpsSerial(2);
 InclineSensor inclineSensor(15);
-MotorController motors;
-// Para el GPS, usamos:
-//   rxPin = 13 (por ejemplo, D13 en tu placa, que corresponde a GPIO13)
-//   txPin = 17 (no se conecta si solo se leen datos)
-GPSManager gps(13, 17);
+
 
 // Usamos el pin 25 como indicador LED para el sensor de inclinación (para no interferir con el GPS)
 #define INDICATOR_LED_PIN 25
@@ -65,11 +58,9 @@ void setup() {
     initNVS();
     delay(500);
 
-    // Configurar canales PWM para motores
-    ledcSetup(PWM_CHANNEL_A, PWM_FREQUENCY, PWM_RESOLUTION);
-    ledcSetup(PWM_CHANNEL_B, PWM_FREQUENCY, PWM_RESOLUTION);
-    ledcAttachPin(MOTOR_ENA, PWM_CHANNEL_A);
-    ledcAttachPin(MOTOR_ENB, PWM_CHANNEL_B);
+    gpsSerial.begin(GPS_BAUD, SERIAL_8N1, RXD2, TXD2);
+    Serial.println("Serial 2 started at 9600 baud rate");
+
 
     Serial.println("Initializing DHT...");
     dht.begin();
@@ -95,16 +86,9 @@ void setup() {
     inclineSensor.begin();
     delay(100);
 
-    Serial.println("Initializing Motor Controller...");
-    motors.begin();
-    delay(100);
-
     Serial.println("\n--- Starting Pathfinder ---");
     Serial.println("Setup completed!");
 
-    Serial.println("\n--- Iniciando GPS (Datos RAW) ---");
-    gps.begin(9600);  // O prueba 4800 o 38400
-    delay(100);
 }
 
 // ====================
@@ -162,15 +146,12 @@ void loop() {
         Serial.println(inclineSensor.isInclined() ? "Inclined" : "Not inclined");
     }
 
-    // Actualizar y mostrar datos RAW del GPS
-    gps.update();
-    String gpsData = gps.getRawData();
-    if (gpsData.length() > 0) {
-        Serial.println("\n--- GPS RAW Data ---");
+    while (gpsSerial.available() > 0){
+        // get the byte data from the GPS
+        char gpsData = gpsSerial.read();
         Serial.print(gpsData);
-    } else {
-        Serial.println("Esperando datos RAW del GPS...");
     }
+    Serial.println("-------------------------------");
 
     delay(1000);
 }
