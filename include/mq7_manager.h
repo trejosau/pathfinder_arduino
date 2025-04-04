@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 
-#define MQ7_PIN 33
+#define MQ7_PIN 33  // Pin donde está conectado el MQ-7 (alimentado a 3.3V)
 
 class MQ7Manager {
 public:
