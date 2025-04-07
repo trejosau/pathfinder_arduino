@@ -44,7 +44,7 @@ ButtonManager button(4);
 DHT11 dht(27);
 MQ7Manager mq7;
 MQ4Manager mq4;
-VoltageSensor voltageSensor;
+VoltageSensor voltageSensor(35);
 HardwareSerial gpsSerial(2);
 TinyGPSPlus gps;
 InclineSensor inclineSensor(15);
@@ -131,6 +131,8 @@ void publishSensorData() {
     if (gps.location.isValid()) {
         gpsDoc["lat"] = gps.location.lat();
         gpsDoc["lng"] = gps.location.lng();
+        // Agregar altitud
+        gpsDoc["alt"] = gps.altitude.meters();
 
         topic = "devices/" + deviceId + "/gps";
         serializeJson(gpsDoc, buffer);
@@ -176,6 +178,7 @@ void publishSensorData() {
 
     // Sensor de voltaje
     voltageDoc["value"] = voltageSensor.getVoltage();
+    voltageDoc["percentage"] = voltageSensor.getBatteryPercentage();
     voltageDoc["unit"] = "V";
 
     topic = "devices/" + deviceId + "/voltage";
@@ -215,6 +218,7 @@ void setup() {
     button.begin();
     delay(100);
 
+    analogReadResolution(12);  // Asegura resolución correcta en ESP32
     Serial.println("Inicializando Voltage Sensor...");
     voltageSensor.begin();
     delay(100);
@@ -294,11 +298,16 @@ void loop() {
         Serial.print(" | MQ7: ");
         Serial.println(mq7.getRawValue());
 
-        // Datos de voltaje e inclinación
-        Serial.print("VOLT: ");
-        Serial.print(voltageSensor.getVoltage());
-        Serial.print(" | INCL: ");
-
+        // Datos de voltaje y batería
+        float voltaje = voltageSensor.getVoltage();
+        float porcentaje = voltageSensor.getBatteryPercentage();
+        
+        Serial.print("Voltaje: ");
+        Serial.print(voltaje);
+        Serial.print(" V | Batería: ");
+        Serial.print(porcentaje);
+        Serial.print(" % | INCL: ");
+        
 
         if (inclineSensor.isInclined()) {
             Serial.println("SI");
